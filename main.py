@@ -42,13 +42,18 @@ def chat_endpoint(request: ChatRequest):
 
     # Fallback to OpenAI response
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an assistant for Venya MedSpa."},
-                {"role": "user", "content": question}
-            ]
-        )
+        from openai import OpenAI
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "system", "content": "You are an assistant for Venya MedSpa."},
+        {"role": "user", "content": question}
+    ]
+)
+
         return {"response": response["choices"][0]["message"]["content"]}
 
     except Exception as e:
