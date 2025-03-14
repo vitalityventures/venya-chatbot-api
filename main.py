@@ -1,27 +1,23 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
 import openai
 import os
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 
 # Initialize FastAPI
 app = FastAPI()
 
-@app.get("/")
-def home():
-    return JSONResponse(content={"message": "API is working!", "api_key": "Key found!"})
-
-# Ensure OPENAI_API_KEY is set
+# Ensure OpenAI API key is set
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Simple data
+# Sample predefined responses
 venya_data = {
-    "Botox": "Smooths wrinkles and fine lines. Price: $12/unit.",
-    "Microneedling": "Enhances skin texture and promotes collagen. Price: $300.",
-    "HydraFacial": "Cleanses, exfoliates, hydrates skin. Price: $250.",
-    "IV Therapy": "Customized infusions to boost wellness.",
-    "Sculptra": "Stimulates collagen to restore volume. Price: $899/vial.",
-    "Contact": "Address: 933 NW 25th Ave, Portland, OR 97210. Phone: (503) 444-9294."
+    "botox": "Smooths wrinkles and fine lines. Price: $12/unit.",
+    "microneedling": "Enhances skin texture and promotes collagen. Price: $300.",
+    "hydrafacial": "Cleanses, exfoliates, hydrates skin. Price: $250.",
+    "iv therapy": "Customized infusions to boost wellness.",
+    "sculptra": "Stimulates collagen to restore volume. Price: $899/vial.",
+    "contact": "Address: 933 NW 25th Ave, Portland, OR 97210. Phone: (503) 444-9294."
 }
 
 # Define request model
@@ -30,31 +26,27 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 def generate_response(request: ChatRequest):
-    question = request.question.strip()
+    question = request.question.lower()
 
-    # If the user asks about a known service, return the predefined response
+    # Check for predefined answers
     for key, value in venya_data.items():
-        if key.lower() in question.lower():
-            return {"response": value}
+        if key in question:
+            return JSONResponse(content={"response": value})
 
-    # Validate API key
-    if not OPENAI_API_KEY:
-        return JSONResponse(content={"error": "OpenAI API key is missing."}, status_code=500)
-
-    # Call OpenAI for unknown queries
+    # If no predefined response, ask OpenAI (with a timeout)
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an assistant for Venya MedSpa."},
-                {"role": "user", "content": question}
-            ],
-            api_key=OPENAI_API_KEY
+            messages=[{"role": "system", "content": "You are an assistant for Venya MedSpa."},
+                      {"role": "user", "content": request.question}],
+            api_key=OPENAI_API_KEY,
+            timeout=5  # **NEW: Added timeout to avoid long delays**
         )
-        return {"response": response["choices"][0]["message"]["content"]}
+        return JSONResponse(content={"response": response["choices"][0]["message"]["content"]})
 
-    except openai.error.OpenAIError as e:
-        return JSONResponse(content={"error": f"OpenAI API error: {str(e)}"}, status_code=500)
-    
+    except openai.error.Timeout:
+        return JSONResponse(content={"response": "I'm sorry, this question is taking too long to answer. Can you try rewording it?"})
+
     except Exception as e:
-        return JSONResponse(content={"error": f"Server error: {str(e)}"}, status_code=500)
+        return JSONResponse(content={"response": "I'm not sure about that. Maybe try asking another way!"})
+
