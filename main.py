@@ -7,20 +7,14 @@ from fastapi.responses import JSONResponse
 # Initialize FastAPI
 app = FastAPI()
 
-# Verify API is working
 @app.get("/")
 def home():
     return JSONResponse(content={"message": "API is working!", "api_key": "Key found!"})
 
-# Ensure OPENAI API key is set
+# Ensure OPENAI_API_KEY is set
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai.api_key = OPENAI_API_KEY
 
-# Define request model
-class ChatRequest(BaseModel):
-    question: str
-
-# Sample data for Venya MedSpa
+# Simple data
 venya_data = {
     "Botox": "Smooths wrinkles and fine lines. Price: $12/unit.",
     "Microneedling": "Enhances skin texture and promotes collagen. Price: $300.",
@@ -30,32 +24,37 @@ venya_data = {
     "Contact": "Address: 933 NW 25th Ave, Portland, OR 97210. Phone: (503) 444-9294."
 }
 
-# Chat endpoint
-@app.post("/chat")
-def chat_endpoint(request: ChatRequest):
-    question = request.question
+# Define request model
+class ChatRequest(BaseModel):
+    question: str
 
-    # Check if question matches predefined responses
+@app.post("/chat")
+def generate_response(request: ChatRequest):
+    question = request.question.strip()
+
+    # If the user asks about a known service, return the predefined response
     for key, value in venya_data.items():
         if key.lower() in question.lower():
             return {"response": value}
 
-    # Fallback to OpenAI response
+    # Validate API key
+    if not OPENAI_API_KEY:
+        return JSONResponse(content={"error": "OpenAI API key is missing."}, status_code=500)
+
+    # Call OpenAI for unknown queries
     try:
-        from openai import OpenAI
-
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-response = client.chat.completions.create(
-    model="gpt-4",
-    messages=[
-        {"role": "system", "content": "You are an assistant for Venya MedSpa."},
-        {"role": "user", "content": question}
-    ]
-)
-
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an assistant for Venya MedSpa."},
+                {"role": "user", "content": question}
+            ],
+            api_key=OPENAI_API_KEY
+        )
         return {"response": response["choices"][0]["message"]["content"]}
 
+    except openai.error.OpenAIError as e:
+        return JSONResponse(content={"error": f"OpenAI API error: {str(e)}"}, status_code=500)
+    
     except Exception as e:
-        return {"error": str(e)}
-
+        return JSONResponse(content={"error": f"Server error: {str(e)}"}, status_code=500)
