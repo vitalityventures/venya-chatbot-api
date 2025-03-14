@@ -4,11 +4,12 @@ import openai
 import os
 
 # Initialize FastAPI
-app = FastAPI()
+from fastapi.responses import JSONResponse
 
 @app.get("/")
 def home():
-    return {"message": "API is working!"}
+    return JSONResponse(content={"message": "API is working!"})
+
 
 # Set your OpenAI API key (you’ll replace this in Vercel later)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
