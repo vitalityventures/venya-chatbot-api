@@ -12,10 +12,15 @@ app = FastAPI()
 def home():
     return JSONResponse(content={"message": "API is working!", "api_key": "Key found!"})
 
-# Ensure OPENAI_API_KEY is set
+# Ensure OPENAI API key is set
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
-# Sample data
+# Define request model
+class ChatRequest(BaseModel):
+    question: str
+
+# Sample data for Venya MedSpa
 venya_data = {
     "Botox": "Smooths wrinkles and fine lines. Price: $12/unit.",
     "Microneedling": "Enhances skin texture and promotes collagen. Price: $300.",
@@ -25,33 +30,27 @@ venya_data = {
     "Contact": "Address: 933 NW 25th Ave, Portland, OR 97210. Phone: (503) 444-9294."
 }
 
-# Define request model
-class ChatRequest(BaseModel):
-    question: str
-
-# New Chat endpoint
+# Chat endpoint
 @app.post("/chat")
-def generate_response(request: ChatRequest):
-    """Handles chat requests"""
+def chat_endpoint(request: ChatRequest):
     question = request.question
-    
-    # Check if the question matches our predefined responses
+
+    # Check if question matches predefined responses
     for key, value in venya_data.items():
         if key.lower() in question.lower():
             return {"response": value}
 
-    # Fallback to OpenAI API
+    # Fallback to OpenAI response
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are an assistant for Venya MedSpa."},
                 {"role": "user", "content": question}
-            ],
-            api_key=OPENAI_API_KEY
+            ]
         )
         return {"response": response["choices"][0]["message"]["content"]}
-    
+
     except Exception as e:
         return {"error": str(e)}
 
