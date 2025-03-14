@@ -2,11 +2,13 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import openai
 import os
+
+# Initialize FastAPI
+app = FastAPI()
+
 @app.get("/")
 def home():
     return {"message": "API is working!"}
-
-app = FastAPI()
 
 # Set your OpenAI API key (you’ll replace this in Vercel later)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
