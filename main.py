@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import openai
 import os
+@app.get("/")
+def home():
+    return {"message": "API is working!"}
 
 app = FastAPI()
 
